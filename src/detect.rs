@@ -88,7 +88,10 @@ mod tests {
     #[case::post_prefix(b"POSTED /some/long/path?a=b HTTP/1.1", true)]
     #[case::invalid_prefix(b"LONGD /some/long/path?a=b HTTP/1.1", false)]
     fn test_determine_http11(#[case] input: &[u8], #[case] expected_http: bool) {
-        assert_eq!(determine_http11(BytesMut::from(input), input.len()), expected_http);
+        assert_eq!(
+            determine_http11(BytesMut::from(input), input.len()),
+            expected_http
+        );
     }
 
     // tokio test will panic if the reader has not been completely

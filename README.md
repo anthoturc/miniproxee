@@ -38,3 +38,10 @@ or looking up DNS. Instead, the upstream peers are hardcoded and specified via a
 Similar to linkerd, the incoming TCP stream will be used to determine if the request is HTTP. A timeout of 10 seconds
 is put in place to avoid hanging and waiting for bytes on the other side.
 
+## Running, Testing, Building
+
+### Testing
+
+A `docker-compose.yml` is available in the test directory. You can run `docker-compose up -d` to start up a series
+of test upstream servers. All they do is echo whatever input is supplied to them. They run over tcp.
+

@@ -1,0 +1,19 @@
+services:
+  upstream1:
+    image: alpine/socat
+    command:
+      - "tcp-l:8081,fork,reuseaddr"
+      - "exec:'/bin/cat'"
+    network_mode: "host"
+  upstream2:
+    image: alpine/socat
+    command:
+      - "tcp-l:8082,fork,reuseaddr"
+      - "exec:'/bin/cat'"
+    network_mode: "host"
+  upstream3:
+    image: alpine/socat
+    command:
+      - "tcp-l:8083,fork,reuseaddr"
+      - "exec:'/bin/cat'"
+    network_mode: "host"
