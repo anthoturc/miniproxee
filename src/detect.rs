@@ -60,17 +60,35 @@ fn determine_http11(buf: BytesMut, n: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::detect::determine_http;
+    use crate::detect::{determine_http, determine_http11};
     use bytes::BytesMut;
+    use rstest::rstest;
     use tokio::io::AsyncReadExt;
     use tokio_test::io::{Builder, Mock};
 
     #[tokio::test]
-    async fn test_determine_h1() {
+    async fn test_determine_http() {
         let mut reader = Builder::new().read(b"GET /hello HTTP/1.1").build();
 
         assert!(determine_http(&mut reader).await);
         read_to_end(&mut reader).await;
+    }
+
+    #[rstest]
+    #[case::get(b"GET /some/long/path?a=b HTTP/1.1", true)]
+    #[case::post(b"POST /some/long/path?a=b HTTP/1.1", true)]
+    #[case::put(b"PUT /some/long/path?a=b HTTP/1.1", true)]
+    #[case::patch(b"PATCH /some/long/path?a=b HTTP/1.1", true)]
+    #[case::head(b"HEAD /some/long/path?a=b HTTP/1.1", true)]
+    #[case::options(b"OPTIONS /some/long/path?a=b HTTP/1.1", true)]
+    #[case::connect(b"CONNECT /some/long/path?a=b HTTP/1.1", true)]
+    #[case::trace(b"TRACE /some/long/path?a=b HTTP/1.1", true)]
+    #[case::delete(b"DELETE /some/long/path?a=b HTTP/1.1", true)]
+    #[case::got_prefix(b"GOTME /some/long/path?a=b HTTP/1.1", false)]
+    #[case::post_prefix(b"POSTED /some/long/path?a=b HTTP/1.1", true)]
+    #[case::invalid_prefix(b"LONGD /some/long/path?a=b HTTP/1.1", false)]
+    fn test_determine_http11(#[case] input: &[u8], #[case] expected_http: bool) {
+        assert_eq!(determine_http11(BytesMut::from(input), input.len()), expected_http);
     }
 
     // tokio test will panic if the reader has not been completely
