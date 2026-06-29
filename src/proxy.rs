@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::Mutex;
 use std::task::{Context, Poll};
 use tokio::io::copy_bidirectional;
-use tokio::net::{TcpStream, ToSocketAddrs};
+use tokio::net::TcpStream;
 use tower_service::Service;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -39,7 +39,7 @@ impl Service<TcpStream> for MiniProxee {
     type Error = ProxyError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // todo: handle backpressure!
         Poll::Ready(Ok(()))
     }

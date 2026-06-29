@@ -42,9 +42,12 @@ pub async fn run(l: Listener) -> ProxyResult<()> {
     }
 }
 
-async fn handle_conn(conn: TcpStream, mut mp: Arc<Mutex<MiniProxee>>) {
-    let mut guard = mp.lock().await;
-    match guard.call(conn).await {
+async fn handle_conn(conn: TcpStream, mp: Arc<Mutex<MiniProxee>>) {
+    let call_fut = {
+        let mut guard = mp.lock().await;
+        guard.call(conn)
+    };
+    match call_fut.await {
         Ok(()) => {}
         Err(e) => {
             println!("error proxying connection: {e:?}");
