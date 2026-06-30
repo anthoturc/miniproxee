@@ -1,10 +1,12 @@
 use miniproxee::error::ProxyResult;
 use miniproxee::net;
 use miniproxee::net::Listener;
-use miniproxee::proxy::{MiniProxee, Peer};
+use miniproxee::proxy::{MiniProxee, MiniProxeeInner, Peer};
+use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::channel;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 use tokio::runtime::Builder;
+use tokio::sync::Semaphore;
 
 static PROXY: LazyLock<()> = LazyLock::new(|| {
     run_proxy().expect("proxy should not error");
@@ -23,18 +25,23 @@ pub fn run_proxy() -> ProxyResult<()> {
 
         let res = rt.block_on(async {
             let lt = match Listener::new(MiniProxee {
-                next_peer: Mutex::new(0),
-                upstream_peers: vec![
-                    Peer {
-                        sock_addr: "127.0.0.1:8081".parse().unwrap(),
-                    },
-                    Peer {
-                        sock_addr: "127.0.0.1:8082".parse().unwrap(),
-                    },
-                    Peer {
-                        sock_addr: "127.0.0.1:8083".parse().unwrap(),
-                    },
-                ],
+                inner: Arc::new(MiniProxeeInner {
+                    next_peer: Arc::new(AtomicUsize::new(0)),
+                    upstream_peers: vec![
+                        Peer {
+                            sock_addr: "127.0.0.1:8081".parse().unwrap(),
+                        },
+                        Peer {
+                            sock_addr: "127.0.0.1:8082".parse().unwrap(),
+                        },
+                        Peer {
+                            sock_addr: "127.0.0.1:8083".parse().unwrap(),
+                        },
+                    ],
+                    conn_permits: Arc::new(Semaphore::new(100)),
+                }),
+                permit_fut: None,
+                permit: None,
             })
             .await
             {

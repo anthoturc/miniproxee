@@ -1,10 +1,8 @@
-use std::time::Duration;
-
 use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::task::JoinSet;
-use tokio::time::{self, Instant};
+use tokio::time::Instant;
 
 mod util;
 
