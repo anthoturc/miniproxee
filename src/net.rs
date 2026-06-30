@@ -1,14 +1,13 @@
 use crate::error::{ErrorType, ProxyError, ProxyResult};
 use crate::proxy::MiniProxee;
-use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tower_service::Service;
+use tower::{Service, ServiceExt};
 
 pub struct Listener {
     inner: TcpListener,
-    mini_proxee: Arc<Mutex<MiniProxee>>,
+    mini_proxee: MiniProxee,
 }
 
 impl Listener {
@@ -17,7 +16,7 @@ impl Listener {
             .await
             .map_err(|_e| ProxyError::new(ErrorType::Bind("127.0.0.1:7777".to_string())))?;
 
-        let mp = Arc::new(Mutex::new(mini_proxee));
+        let mp = mini_proxee;
         Ok(Listener {
             inner: tcp_listener,
             mini_proxee: mp,
@@ -28,8 +27,12 @@ impl Listener {
 pub async fn run(l: Listener) -> ProxyResult<()> {
     loop {
         match l.inner.accept().await {
-            Ok((conn, client_addr)) => {
-                let mp = l.mini_proxee.clone();
+            Ok((conn, _client_addr)) => {
+                let mp = MiniProxee {
+                    inner: l.mini_proxee.inner.clone(),
+                    permit_fut: None,
+                    permit: None,
+                };
                 tokio::spawn(async move {
                     handle_conn(conn, mp).await;
                 });
@@ -42,10 +45,15 @@ pub async fn run(l: Listener) -> ProxyResult<()> {
     }
 }
 
-async fn handle_conn(conn: TcpStream, mp: Arc<Mutex<MiniProxee>>) {
+async fn handle_conn(mut conn: TcpStream, mut mp: MiniProxee) {
     let call_fut = {
-        let mut guard = mp.lock().await;
-        guard.call(conn)
+        match mp.ready().await {
+            Ok(proxee) => proxee.call(conn),
+            Err(_) => {
+                let _ = conn.shutdown().await;
+                return;
+            }
+        }
     };
     match call_fut.await {
         Ok(()) => {}
