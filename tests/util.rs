@@ -22,29 +22,28 @@ pub fn run_proxy() -> ProxyResult<()> {
             .name("test-miniproxee")
             .build()
             .unwrap();
+        let mp = MiniProxee {
+            inner: Arc::new(MiniProxeeInner {
+                next_peer: Arc::new(AtomicUsize::new(0)),
+                upstream_peers: vec![
+                    Peer {
+                        sock_addr: "127.0.0.1:8081".parse().unwrap(),
+                    },
+                    Peer {
+                        sock_addr: "127.0.0.1:8082".parse().unwrap(),
+                    },
+                    Peer {
+                        sock_addr: "127.0.0.1:8083".parse().unwrap(),
+                    },
+                ],
+                conn_permits: Arc::new(Semaphore::new(100)),
+            }),
+            permit_fut: None,
+            permit: None,
+        };
 
         let res = rt.block_on(async {
-            let lt = match Listener::new(MiniProxee {
-                inner: Arc::new(MiniProxeeInner {
-                    next_peer: Arc::new(AtomicUsize::new(0)),
-                    upstream_peers: vec![
-                        Peer {
-                            sock_addr: "127.0.0.1:8081".parse().unwrap(),
-                        },
-                        Peer {
-                            sock_addr: "127.0.0.1:8082".parse().unwrap(),
-                        },
-                        Peer {
-                            sock_addr: "127.0.0.1:8083".parse().unwrap(),
-                        },
-                    ],
-                    conn_permits: Arc::new(Semaphore::new(100)),
-                }),
-                permit_fut: None,
-                permit: None,
-            })
-            .await
-            {
+            let lt = match Listener::new(mp).await {
                 Ok(l) => l,
                 Err(e) => {
                     return Err(e);
