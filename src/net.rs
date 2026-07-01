@@ -1,5 +1,8 @@
 use crate::error::{ErrorType, ProxyError, ProxyResult};
+use crate::middleware::timeout::Timeout;
 use crate::proxy::MiniProxee;
+use std::fmt::Debug;
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
@@ -33,8 +36,9 @@ pub async fn run(l: Listener) -> ProxyResult<()> {
                     permit_fut: None,
                     permit: None,
                 };
+                let timeout = Timeout::new(Duration::from_secs(10), mp);
                 tokio::spawn(async move {
-                    handle_conn(conn, mp).await;
+                    handle_conn(conn, timeout).await;
                 });
             }
             Err(e) => {
@@ -45,9 +49,13 @@ pub async fn run(l: Listener) -> ProxyResult<()> {
     }
 }
 
-async fn handle_conn(mut conn: TcpStream, mut mp: MiniProxee) {
+async fn handle_conn<T>(mut conn: TcpStream, mut s: T)
+where
+    T: Service<TcpStream>,
+    T::Error: Debug,
+{
     let call_fut = {
-        match mp.ready().await {
+        match s.ready().await {
             Ok(proxee) => proxee.call(conn),
             Err(_) => {
                 let _ = conn.shutdown().await;
@@ -56,7 +64,7 @@ async fn handle_conn(mut conn: TcpStream, mut mp: MiniProxee) {
         }
     };
     match call_fut.await {
-        Ok(()) => {}
+        Ok(_) => {}
         Err(e) => {
             println!("error proxying connection: {e:?}");
         }

@@ -11,6 +11,7 @@ pub enum ErrorType {
     UpstreamConnect(String),
     Bidirectional(String),
     Internal(String),
+    Timeout,
 }
 
 impl std::fmt::Display for ProxyError {
@@ -23,6 +24,7 @@ impl std::fmt::Display for ProxyError {
                 "failed to copy data between upstream and downstream: {e}"
             ),
             ErrorType::Internal(e) => write!(f, "unexpected internal error: {e}"),
+            ErrorType::Timeout => write!(f, "timeout hit on connection"),
         }
     }
 }
